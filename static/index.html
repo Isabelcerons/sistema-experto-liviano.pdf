@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema Experto PDF</title>
+<style>
+  :root{
+    --bg:#f4f3ee; --panel:#fff; --ink:#1d1d1b; --muted:#6c6a63; --line:#e2dfd5;
+    --accent:#1f5f8b; --accent-soft:#e2edf5; --warn:#a6402b; --chip:#efede6;
+    --img:#7a4fb0; --img-soft:#f0e8f9; --loc:#a8641c; --loc-soft:#f8eddf; --ok:#2f8a57; --r:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Segoe UI",system-ui,sans-serif;height:100vh;overflow:hidden}
+  button{font:inherit;cursor:pointer;color:inherit}
+  .app{display:grid;grid-template-columns:260px minmax(0,1fr) 400px;height:100vh}
+  aside,.side{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+  aside{border-right:1px solid var(--line)} .side{border-left:1px solid var(--line)}
+  .brand{padding:18px 18px 6px;font-weight:700;font-size:17px}
+  .brand small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .drop{margin:8px 14px 10px;border:1.5px dashed #c6c2b6;border-radius:var(--r);padding:16px 12px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
+  .drop.over,.drop:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .drop b{color:var(--accent)}
+  .progress{margin:0 14px 10px;font-size:12px;color:var(--muted);display:none}
+  .bar{height:4px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+  .docs{flex:1;overflow:auto;padding:0 8px}
+  .doc{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .doc:hover{background:var(--chip)} .doc.active{background:var(--accent-soft)}
+  .doc .n{flex:1;min-width:0} .doc .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+  .doc .m{font-size:11px;color:var(--muted)}
+  .doc .x{opacity:0;border:0;background:none;color:var(--muted);padding:2px 6px;border-radius:6px}
+  .doc:hover .x{opacity:1} .doc .x:hover{background:#f3dcd6;color:var(--warn)}
+  .stat{border-top:1px solid var(--line);padding:10px 14px;font-size:12px;color:var(--muted)}
+  .stat div{display:flex;align-items:center;gap:7px;margin:2px 0}
+  .stat span.txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:#bbb;flex:none} .dot.ok{background:var(--ok)} .dot.bad{background:var(--warn)} .dot.mid{background:#d39b2a}
+  .ghost{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:4px 10px;font-size:13px;white-space:nowrap}
+  .ghost:hover{border-color:var(--accent);color:var(--accent)}
+  main{display:flex;flex-direction:column;min-height:0;min-width:0}
+  .top{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;background:var(--panel)}
+  .top h2{margin:0;font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .msgs{flex:1;overflow:auto;padding:20px}
+  .empty{max-width:560px;margin:8vh auto;text-align:center;color:var(--muted)}
+  .empty h3{color:var(--ink);font-size:20px;margin:0 0 8px}
+  .empty .tips{text-align:left;display:inline-block;margin-top:12px;font-size:14px}
+  .empty .tips button{display:block;margin:6px 0;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;font-size:13px;text-align:left}
+  .empty .tips button:hover{border-color:var(--accent);color:var(--accent)}
+  .msg{max-width:780px;margin:0 auto 16px}
+  .b{width:fit-content;max-width:100%;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px 14px 14px 4px;word-wrap:break-word}
+  .msg.user .b{background:var(--accent);color:#fff;margin-left:auto;border:0;border-radius:14px 14px 4px 14px;white-space:pre-wrap}
+  .b.err{border-color:#e8b9ad;color:var(--warn);background:#fbf0ec}
+  .b p{margin:.35em 0} .b h2,.b h3,.b h4{margin:.6em 0 .3em;font-size:15px} .b ul,.b ol{margin:.3em 0;padding-left:1.3em}
+  .b table{border-collapse:collapse;margin:.5em 0;font-size:13px;display:block;overflow-x:auto}
+  .b th,.b td{border:1px solid var(--line);padding:4px 8px;text-align:left} .b th{background:var(--chip)}
+  .b code{background:var(--chip);padding:0 4px;border-radius:4px;font-size:13px}
+  .badge{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:0 6px;margin-bottom:4px;background:#e3f2e8;color:var(--ok)}
+  .cite{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:5px;padding:0 5px;font-size:12px;font-weight:600;cursor:pointer;margin:0 1px;white-space:nowrap}
+  .cite:hover{background:var(--accent);color:#fff}
+  .status{font-size:13px;color:var(--img);background:var(--img-soft);border-radius:8px;padding:6px 10px;margin-bottom:6px;width:fit-content}
+  .srcs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .src{font-size:12px;background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:2px 9px;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+  .src:hover{border-color:var(--accent);color:var(--accent)}
+  .src.image{background:var(--img-soft);border-color:#dccdef;color:var(--img)}
+  .src img{width:22px;height:22px;object-fit:cover;border-radius:4px}
+  .typing::after{content:"▍";animation:blink 1s infinite} @keyframes blink{50%{opacity:0}}
+  form.ask{padding:10px 20px 16px}
+  .askbox{max-width:780px;margin:0 auto;display:flex;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px}
+  .askbox textarea{flex:1;border:0;resize:none;font:inherit;outline:none;padding:6px 8px;max-height:140px;background:transparent;color:inherit}
+  .send{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:0 16px;font-weight:600}
+  .send:disabled{opacity:.45;cursor:default}
+  .tabs{display:flex;gap:4px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
+  .tab{border:0;background:none;padding:7px 12px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
+  .tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  .pane{display:none;flex:1;min-height:0;flex-direction:column} .pane.on{display:flex}
+  .vbar{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:13px;color:var(--muted)}
+  .vbar .title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .viewer{flex:1;overflow:auto;padding:0 12px 12px;text-align:center}
+  .viewer img{max-width:100%;box-shadow:0 1px 6px rgba(0,0,0,.12);border-radius:4px;background:#fff}
+  .ph{color:var(--muted);font-size:13px;margin-top:30%;padding:0 20px}
+  .list{flex:1;overflow:auto;padding:0 12px 12px;font-size:13px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;background:#fff}
+  .card img{max-width:100%;max-height:200px;display:block;margin:6px auto;border:1px solid var(--line);border-radius:4px;cursor:zoom-in}
+  .card .h{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px}
+  .card .h span{flex:1}
+  .card .lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-top:6px}
+  .card .txt{white-space:pre-wrap;color:#3d3c38}
+  .card .none{color:var(--muted);font-style:italic}
+  .card.sel{border-color:var(--img);box-shadow:0 0 0 2px var(--img-soft)}
+  .searchbox{display:flex;gap:6px;padding:12px}
+  .searchbox input{flex:1;font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;outline:none}
+  .res{cursor:pointer} .res:hover{border-color:var(--accent)}
+  .res mark{background:#fff0a8;padding:0 1px}
+  dialog{border:0;border-radius:14px;padding:0;max-width:540px;width:94vw;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .dlg{padding:20px 22px} .dlg h3{margin:0 0 10px}
+  fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 12px;padding:8px 12px 10px}
+  legend{font-size:12px;font-weight:700;color:var(--muted);padding:0 4px}
+  .row{display:flex;align-items:center;gap:10px;margin:6px 0} .row label{width:150px;font-size:13px;color:var(--muted)}
+  .row input,.row select{flex:1;font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;min-width:0}
+  .note{font-size:12px;color:var(--muted);margin:6px 0 0}
+  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+  .seg{display:flex;background:var(--chip);border-radius:9px;padding:3px;gap:2px}
+  .seg button{border:0;background:none;border-radius:7px;padding:5px 12px;font-size:13px;color:var(--muted)}
+  .seg button.on{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .seg button:disabled{opacity:.4;cursor:default}
+  #sumView{flex:1;overflow:auto;padding:22px 28px;display:none}
+  #sumView.on{display:block}
+  .sumbar{display:flex;gap:8px;align-items:center;max-width:820px;margin:0 auto 14px}
+  .sumbar span{flex:1;color:var(--muted);font-size:13px}
+  #sumBody{max-width:820px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 22px}
+  #sumBody h2{font-size:17px;margin:1em 0 .4em;padding-bottom:4px;border-bottom:1px solid var(--line)} #sumBody h2:first-child{margin-top:0}
+  #sumBody li{margin:.25em 0}
+  .gen{text-align:center;color:var(--muted);padding:30px 10px} .gen h3{color:var(--ink);margin:0 0 6px}
+  .gen .bar{max-width:320px;margin:14px auto 6px}
+  @media (max-width:1100px){ .app{grid-template-columns:230px minmax(0,1fr)} .side{display:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">📚 Sistema Experto PDF<small>Liviano · texto, palabras en imágenes y fotos · 100 % local</small></div>
+    <div class="drop" id="drop">Arrastra PDF aquí o <b>elige archivos</b><input type="file" id="file" accept="application/pdf" multiple hidden></div>
+    <div class="progress" id="prog"><span id="ptext"></span><div class="bar"><i id="pbar"></i></div></div>
+    <div class="docs" id="docs"></div>
+    <div class="stat" id="stat">
+      <div><i class="dot" id="d1"></i><span class="txt" id="s1">Revisando Ollama…</span></div>
+      <div><i class="dot" id="d2"></i><span class="txt" id="s2">Revisando OCR…</span></div>
+      <div><i class="dot" id="d3"></i><span class="txt" id="s3"></span><button class="ghost" id="btnSet">⚙ Ajustes</button></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top"><h2 id="title">Sube un PDF para empezar</h2>
+      <div class="seg" id="views"><button class="on" data-v="chat">💬 Chat</button><button data-v="sum">📋 Resumen</button></div>
+      <button class="ghost" id="btnClear">Borrar chat</button></div>
+    <div id="sumView"><div class="sumbar"><span id="sumInfo"></span><button class="ghost" id="sumCopy">Copiar</button><button class="ghost" id="sumRedo">↻ Regenerar</button></div><div id="sumBody"></div></div>
+    <div class="msgs" id="msgs"></div>
+    <form class="ask" id="ask">
+      <div class="askbox">
+        <textarea id="q" rows="1" placeholder="Ej.: ¿Dónde dice Isabel? · ¿Qué aparece en la imagen de la página 8? · ¿De qué trata?"></textarea>
+        <button class="send" id="send" disabled>Enviar</button>
+      </div>
+    </form>
+  </main>
+
+  <section class="side">
+    <div class="tabs">
+      <button class="tab on" data-p="pPage">📄 Página</button>
+      <button class="tab" data-p="pImgs">🖼 Imágenes</button>
+      <button class="tab" data-p="pFind">🔎 Buscar palabra</button>
+    </div>
+    <div class="pane on" id="pPage">
+      <div class="vbar"><button class="ghost" id="prev">‹</button><span class="title" id="vtitle">—</span><button class="ghost" id="next">›</button></div>
+      <div class="viewer" id="viewer"><div class="ph">Haz clic en una cita <span class="cite">archivo.pdf · pág. 3</span> para ver la página con la palabra resaltada.</div></div>
+    </div>
+    <div class="pane" id="pImgs">
+      <div class="vbar"><span class="title" id="itext">Imágenes del documento</span></div>
+      <div class="list" id="imgs"></div>
+    </div>
+    <div class="pane" id="pFind">
+      <form class="searchbox" id="findf"><input id="findq" placeholder="Palabra o frase…"><button class="send">Buscar</button></form>
+      <div class="list" id="found"><div class="ph" style="margin-top:10%">Búsqueda instantánea, sin IA: ignora mayúsculas y tildes, busca también dentro de imágenes y páginas escaneadas.</div></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form class="dlg" method="dialog" id="setf">
+    <h3>⚙ Ajustes</h3>
+    <fieldset><legend>Ollama (en tu PC)</legend>
+      <div class="row"><label>Modelo de chat</label><input name="chat_model" list="om"></div>
+      <div class="row"><label>Modelo de embeddings</label><input name="embed_model" list="om"></div>
+      <div class="row"><label>URL de Ollama</label><input name="ollama_url"></div>
+      <p class="note">Chat: <b>qwen2.5:1.5b</b> (recomendado para tu PC) · qwen2.5:3b (más preciso, el doble de lento).</p>
+    </fieldset>
+    <fieldset><legend>Mirar imágenes (visión)</legend>
+      <div class="row"><label>¿Quién mira?</label><select name="vision_provider"><option value="ollama">Local – Ollama (sin internet, lento)</option><option value="gemini">Gemini – Google (nube, rápido)</option></select></div>
+      <div class="row"><label>Modelo local</label><input name="vision_model" list="om"></div>
+      <div class="row"><label>Clave de Gemini</label><input name="gemini_api_key" type="password" autocomplete="off"></div>
+      <div class="row"><label>Modelo de Gemini</label><input name="gemini_model"></div>
+      <div class="row"><label>Describir al subir</label><select name="describe_on_upload"><option value="no">No: solo cuando pregunte (rápido)</option><option value="yes">Sí: todas las imágenes</option></select></div>
+      <p class="note">Local: <b>moondream</b> (1,7 GB, el más liviano; su descripción se traduce sola al español). La clave de Gemini es gratis en <b>aistudio.google.com</b> → Get API key.</p>
+    </fieldset>
+    <fieldset><legend>OCR (Tesseract)</legend>
+      <div class="row"><label>Idiomas</label><input name="ocr_lang"></div>
+      <div class="row"><label>Ruta de tesseract.exe</label><input name="tesseract_cmd" placeholder="vacío = buscarlo solo"></div>
+    </fieldset>
+    <datalist id="om"></datalist>
+    <div class="actions"><button class="ghost" value="cancel">Cancelar</button><button class="send" value="save" style="padding:7px 16px">Guardar</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const S = { docs: [], scope: null, busy: false, view: null, imgs: [] };
+const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const docByName = n => S.docs.find(d => d.name.toLowerCase() === n.trim().toLowerCase());
+const curDoc = () => S.scope && S.scope.startsWith('doc:') ? S.docs.find(d => d.id === +S.scope.slice(4)) : null;
+
+function inline(t){
+  t = esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  t = t.replace(/\[([^\[\],]+?\.pdf)\s*,\s*p[áa]g(?:ina)?\.?\s*(\d+)\]/gi,
+    (_, n, p) => `<span class="cite" data-doc="${esc(n)}" data-page="${p}">${esc(n)} · pág. ${p}</span>`);
+  return t.replace(/\[p[áa]?g?\.?\s*(\d+)\]/gi, (_, p) => `<span class="cite" data-page="${p}">pág. ${p}</span>`);
+}
+function md(src){
+  const lines = src.replace(/\r/g, '').split('\n'); let html = '', list = null, i = 0;
+  const close = () => { if(list){ html += `</${list}>`; list = null; } };
+  while(i < lines.length){
+    const l = lines[i]; let m;
+    if(/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
+      close(); const row = r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      html += '<table><tr>' + row(l).map(c => `<th>${inline(c)}</th>`).join('') + '</tr>'; i += 2;
+      while(i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ html += '<tr>' + row(lines[i]).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>'; i++; }
+      html += '</table>'; continue;
+    }
+    if((m = l.match(/^\s*(#{1,4})\s+(.*)/))){ close(); html += `<h3>${inline(m[2])}</h3>`; }
+    else if((m = l.match(/^\s*[-*•]\s+(.*)/))){ if(list !== 'ul'){ close(); html += '<ul>'; list = 'ul'; } html += `<li>${inline(m[1])}</li>`; }
+    else if((m = l.match(/^\s*\d+[.)]\s+(.*)/))){ if(list !== 'ol'){ close(); html += '<ol>'; list = 'ol'; } html += `<li>${inline(m[1])}</li>`; }
+    else if(!l.trim()) close();
+    else { close(); html += `<p>${inline(l)}</p>`; }
+    i++;
+  }
+  close(); return html;
+}
+async function readNDJSON(res, cb){
+  const rd = res.body.getReader(), dec = new TextDecoder(); let buf = '';
+  for(;;){ const {value, done} = await rd.read(); if(done) break; buf += dec.decode(value, {stream:true});
+    let i; while((i = buf.indexOf('\n')) >= 0){ const ln = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if(ln) cb(JSON.parse(ln)); } }
+  if(buf.trim()) cb(JSON.parse(buf));
+}
+async function api(path, opts = {}){
+  const r = await fetch(path, opts);
+  if(!r.ok){ let m = r.statusText; try{ m = (await r.json()).detail || m }catch{} throw new Error(m); }
+  return r.json();
+}
+
+// ---------- estado ----------
+async function status(){
+  try{
+    const st = await api('/api/status');
+    const o = st.ollama;
+    $('#d1').className = 'dot ' + (o.ok ? 'ok' : 'bad');
+    $('#s1').textContent = o.ok ? `Chat: ${st.chat_model}` : o.error;
+    $('#d2').className = 'dot ' + (st.ocr.ok ? (st.ocr.warning ? 'mid' : 'ok') : 'bad');
+    $('#s2').textContent = st.ocr.ok ? (st.ocr.warning || `OCR: Tesseract (${st.ocr.lang})`) : 'OCR: falta instalar Tesseract';
+    $('#d3').className = 'dot ' + (st.vision_warning ? 'bad' : 'ok');
+    $('#s3').textContent = st.vision_warning || `Visión: ${st.vision_provider === 'gemini' ? 'Gemini ☁' : 'local'}`;
+    [$('#s1'), $('#s2'), $('#s3')].forEach(e => e.title = e.textContent);
+    $('#om').innerHTML = o.models.map(m => `<option value="${esc(m)}">`).join('');
+  }catch(e){ $('#s1').textContent = e.message; }
+}
+
+// ---------- documentos ----------
+async function loadDocs(sel){
+  S.docs = await api('/api/documents');
+  if(sel) S.scope = sel;
+  if(!S.scope || (S.scope !== 'all' && !curDoc())) S.scope = S.docs.length ? `doc:${S.docs[S.docs.length - 1].id}` : null;
+  const item = (scope, name, meta, x) => `<div class="doc ${S.scope === scope ? 'active' : ''}" data-scope="${scope}">
+      <div class="n"><div class="t">${name}</div><div class="m">${meta}</div></div>${x ? `<button class="x" data-del="${x}" title="Eliminar">✕</button>` : ''}</div>`;
+  $('#docs').innerHTML = (S.docs.length > 1 ? item('all', '<b>📚 Todos los documentos</b>', `${S.docs.length} PDF`) : '') +
+    S.docs.map(d => item(`doc:${d.id}`, '📄 ' + esc(d.name),
+      `${d.pages} pág.${d.images ? ` · 🖼 ${d.images}` : ''}${d.ocr_pages ? ` · OCR ${d.ocr_pages}` : ''}`, d.id)).join('') ||
+    '<p style="color:var(--muted);font-size:13px;padding:0 10px">Aún no hay documentos.</p>';
+  $('#title').textContent = S.scope === 'all' ? '📚 Todos los documentos' : (curDoc()?.name || 'Sube un PDF para empezar');
+  $('#send').disabled = !S.scope;
+  $('#views button[data-v="sum"]').disabled = !curDoc();
+  await loadMsgs(); loadImages(); setView(S.view2 || 'chat');
+}
+$('#docs').onclick = async e => {
+  const del = e.target.closest('[data-del]');
+  if(del){ e.stopPropagation(); const d = S.docs.find(x => x.id === +del.dataset.del);
+    if(confirm(`¿Eliminar "${d.name}"?`)){ await api(`/api/documents/${d.id}`, {method:'DELETE'}); if(S.scope === `doc:${d.id}`) S.scope = null; loadDocs(); } return; }
+  const it = e.target.closest('.doc'); if(it){ S.scope = it.dataset.scope; loadDocs(); }
+};
+const drop = $('#drop');
+drop.onclick = () => $('#file').click();
+$('#file').onchange = e => uploadAll([...e.target.files]);
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); uploadAll([...e.dataTransfer.files].filter(f => /\.pdf$/i.test(f.name))); };
+async function uploadAll(files){
+  for(const f of files) await upload(f);
+  $('#file').value = '';
+}
+async function upload(f){
+  $('#prog').style.display = 'block'; $('#ptext').textContent = `${f.name}: subiendo…`; $('#pbar').style.width = '1%';
+  const fd = new FormData(); fd.append('file', f);
+  let newId = null;
+  try{
+    const r = await fetch('/api/documents', {method:'POST', body: fd});
+    if(!r.ok) throw new Error((await r.json()).detail);
+    await readNDJSON(r, ev => {
+      if(ev.error) throw new Error(ev.error);
+      if(ev.warning) addNote('⚠ ' + ev.warning);
+      if(ev.msg){ $('#ptext').textContent = `${f.name}: ${ev.msg}`; $('#pbar').style.width = (ev.pct || 0) + '%'; }
+      if(ev.done) newId = ev.document.id;
+    });
+  }catch(e){ addNote(`❌ ${f.name}: ${e.message}`, true); }
+  $('#prog').style.display = 'none';
+  if(newId) await loadDocs(`doc:${newId}`);
+}
+
+// ---------- mensajes ----------
+const TIPS = ['¿De qué trata el documento?', '¿Dónde dice "…"? (escribe una palabra del PDF)', '¿Qué aparece en la imagen de la página 1?'];
+function empty(){
+  $('#msgs').innerHTML = S.scope ? `<div class="empty"><h3>Pregúntale a tu PDF</h3>
+    <b>Dónde dice una palabra</b> → al instante, sin IA.<br><b>Preguntas generales</b> → la IA local responde citando la página.<br><b>Imágenes</b> → la IA las mira cuando preguntas por ellas.
+    <div class="tips">${TIPS.map(t => `<button>${esc(t)}</button>`).join('')}</div></div>`
+    : `<div class="empty"><h3>Sube un PDF para empezar</h3>Arrastra el archivo a la izquierda. Se lee el texto, las páginas escaneadas y las palabras dentro de las imágenes.</div>`;
+  $('#msgs').querySelectorAll('.tips button').forEach(b => b.onclick = () => { $('#q').value = b.textContent.replace(' (escribe una palabra del PDF)', ''); $('#q').focus(); });
+}
+async function loadMsgs(){
+  if(!S.scope) return empty();
+  const ms = await api(`/api/messages?scope=${encodeURIComponent(S.scope)}`);
+  if(!ms.length) return empty();
+  $('#msgs').innerHTML = '';
+  for(const m of ms){ const el = addMsg(m.role, m.content); if(m.role === 'assistant') decorate(el, m.meta || {}); }
+}
+function addMsg(role, text){
+  if($('#msgs .empty')) $('#msgs').innerHTML = '';
+  const el = document.createElement('div'); el.className = `msg ${role}`;
+  el.innerHTML = `<div class="b">${role === 'user' ? esc(text) : md(text)}</div>`;
+  $('#msgs').appendChild(el); $('#msgs').scrollTop = 1e9; return el;
+}
+function addNote(text, err){
+  const el = addMsg('assistant', ''); el.querySelector('.b').textContent = text; if(err) el.querySelector('.b').classList.add('err');
+}
+function decorate(el, meta){
+  el._meta = meta;
+  if(meta.instant) el.querySelector('.b').insertAdjacentHTML('afterbegin', '<span class="badge">⚡ Respuesta instantánea</span>');
+  const src = (meta.sources || []).filter((s, i, a) => a.findIndex(x => x.page === s.page && x.doc_id === s.doc_id && x.kind === s.kind) === i);
+  if(src.length) el.insertAdjacentHTML('beforeend', '<div class="srcs">' + src.map(s =>
+    `<span class="src ${s.kind}" data-doc-id="${s.doc_id}" data-page="${s.page}" ${s.image_id ? `data-img="${s.image_id}"` : ''} title="${esc(s.text)}">${s.image_id ? `<img src="/api/images/${s.image_id}/file">` : '📄'} pág. ${s.page}</span>`).join('') + '</div>');
+}
+$('#msgs').onclick = e => {
+  const c = e.target.closest('.cite, .src'); if(!c) return;
+  const meta = c.closest('.msg')?._meta || {};
+  let docId = c.dataset.docId ? +c.dataset.docId : null;
+  if(!docId && c.dataset.doc) docId = docByName(c.dataset.doc)?.id;
+  if(!docId) docId = curDoc()?.id || S.docs[0]?.id;
+  if(c.dataset.img) return showImage(+c.dataset.img);
+  const page = +c.dataset.page;
+  let hl = null;
+  for(const loc of meta.locations || []) for(const h of loc.hits) if(h.page === page && h.doc_id === docId && !h.image_id){ hl = h.match; break; }
+  if(!hl) for(const loc of meta.locations || []) for(const h of loc.hits) if(h.page === page && h.image_id){ return showImage(h.image_id); }
+  showPage(docId, page, hl);
+};
+
+$('#ask').onsubmit = async e => {
+  e.preventDefault();
+  const q = $('#q').value.trim(); if(!q || S.busy || !S.scope) return;
+  S.busy = true; $('#send').disabled = true; $('#q').value = ''; autosize();
+  addMsg('user', q);
+  const el = addMsg('assistant', ''); const b = el.querySelector('.b'); b.classList.add('typing');
+  let text = '', meta = {}, st = null;
+  try{
+    const r = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({scope: S.scope, question: q})});
+    if(!r.ok) throw new Error((await r.json()).detail);
+    await readNDJSON(r, ev => {
+      if(ev.type === 'meta') meta = ev;
+      else if(ev.type === 'status'){ if(!st){ st = document.createElement('div'); st.className = 'status'; el.prepend(st); } st.textContent = ev.text; }
+      else if(ev.type === 'token'){ if(st){ st.remove(); st = null; } text += ev.text; b.innerHTML = md(text); $('#msgs').scrollTop = 1e9; }
+      else if(ev.type === 'error') throw new Error(ev.text);
+    });
+    b.classList.remove('typing'); decorate(el, meta);
+    const loc = (meta.locations || []).flatMap(l => l.hits)[0];
+    if(loc) loc.image_id ? showImage(loc.image_id) : showPage(loc.doc_id, loc.page, loc.match);
+    if(meta.sources?.some(s => s.kind === 'image')) loadImages();
+  }catch(err){ if(st) st.remove(); b.classList.remove('typing'); b.classList.add('err'); b.textContent = '❌ ' + err.message; }
+  S.busy = false; $('#send').disabled = false; $('#q').focus();
+};
+const autosize = () => { const t = $('#q'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; };
+$('#q').oninput = autosize;
+$('#q').onkeydown = e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('#ask').requestSubmit(); } };
+$('#btnClear').onclick = async () => { if(S.scope && confirm('¿Borrar la conversación?')){ await api(`/api/messages?scope=${encodeURIComponent(S.scope)}`, {method:'DELETE'}); loadMsgs(); } };
+
+// ---------- resumen ----------
+S.view2 = 'chat';
+function setView(v){
+  if(v === 'sum' && !curDoc()) v = 'chat';
+  S.view2 = v;
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('#msgs').style.display = v === 'chat' ? '' : 'none'; $('#ask').style.display = v === 'chat' ? '' : 'none';
+  $('#btnClear').style.display = v === 'chat' ? '' : 'none';
+  $('#sumView').classList.toggle('on', v === 'sum');
+  if(v === 'sum') loadSummary();
+}
+document.querySelectorAll('#views button').forEach(b => b.onclick = () => setView(b.dataset.v));
+async function loadSummary(){
+  const d = curDoc(); if(!d) return;
+  $('#sumInfo').textContent = d.name;
+  const r = await api(`/api/documents/${d.id}/summary`);
+  if(r.content){ $('#sumBody').innerHTML = md(r.content); $('#sumRedo').style.display = ''; return; }
+  $('#sumRedo').style.display = 'none';
+  $('#sumBody').innerHTML = `<div class="gen"><h3>📋 Resumen del documento</h3>
+    De qué trata, ideas principales con su página y conclusión.<br>Las ideas clave salen al instante; la IA redacta el resumen en 1 a 2 minutos. Queda guardado.
+    <div style="margin-top:14px"><button class="send" id="sumGo" style="padding:8px 18px">Generar resumen</button></div></div>`;
+  $('#sumGo').onclick = () => makeSummary(false);
+}
+async function makeSummary(force){
+  const d = curDoc(); if(!d) return;
+  $('#sumBody').innerHTML = `<div class="gen"><h3>Generando resumen…</h3><span id="sumMsg">Empezando…</span><div class="bar"><i id="sumBar"></i></div></div>`;
+  let text = '', ideas = '';
+  try{
+    const r = await fetch(`/api/documents/${d.id}/summary${force ? '?force=true' : ''}`, {method:'POST'});
+    await readNDJSON(r, ev => {
+      if(ev.type === 'progress'){ const m = $('#sumMsg'); if(m){ m.textContent = ev.message; $('#sumBar').style.width = (ev.pct || 0) + '%'; } }
+      else if(ev.type === 'ideas'){ ideas = ev.content; $('#sumBody').innerHTML = `<div class="gen" style="padding:10px"><span id="sumMsg">La IA está redactando…</span><div class="bar"><i id="sumBar" style="width:40%"></i></div></div>` + md(ideas); }
+      else if(ev.type === 'token'){ text += ev.text; $('#sumBody').innerHTML = md(text) + '<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">' + md(ideas); }
+      else if(ev.type === 'done'){ $('#sumBody').innerHTML = md(ev.content); $('#sumRedo').style.display = ''; }
+      else if(ev.type === 'error') throw new Error(ev.text);
+    });
+  }catch(e){ $('#sumBody').innerHTML = `<div class="gen" style="color:var(--warn)">❌ ${esc(e.message)}</div>`; }
+}
+$('#sumRedo').onclick = () => confirm('¿Volver a generar el resumen?') && makeSummary(true);
+$('#sumCopy').onclick = () => navigator.clipboard.writeText($('#sumBody').innerText);
+$('#sumBody').onclick = e => { const c = e.target.closest('.cite'); if(!c) return;
+  const d = c.dataset.doc ? docByName(c.dataset.doc) : curDoc(); showPage((d || curDoc()).id, +c.dataset.page); };
+
+// ---------- panel derecho ----------
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => tab(t.dataset.p));
+function tab(id){ document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.p === id)); document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === id)); }
+function showPage(docId, page, hl){
+  const d = S.docs.find(x => x.id === docId); if(!d) return;
+  page = Math.max(1, Math.min(d.pages, page)); S.view = {docId, page, hl};
+  $('#vtitle').textContent = `${d.name} · pág. ${page} de ${d.pages}${hl ? ' · resaltado' : ''}`;
+  $('#viewer').innerHTML = `<img src="/api/documents/${docId}/page/${page}${hl ? '?hl=' + encodeURIComponent(hl) : ''}" alt="página ${page}">`;
+  tab('pPage');
+}
+$('#prev').onclick = () => S.view && showPage(S.view.docId, S.view.page - 1);
+$('#next').onclick = () => S.view && showPage(S.view.docId, S.view.page + 1);
+
+async function loadImages(){
+  const d = curDoc();
+  if(!d){ $('#imgs').innerHTML = '<div class="ph" style="margin-top:10%">Elige un documento para ver sus imágenes.</div>'; return; }
+  S.imgs = await api(`/api/documents/${d.id}/images`);
+  $('#itext').textContent = S.imgs.length ? `${S.imgs.length} imágenes · clic en 👁 para que la IA la mire` : 'Este documento no tiene imágenes';
+  $('#imgs').innerHTML = S.imgs.map(im => `<div class="card" id="img${im.id}">
+    <div class="h"><span>🖼 Página ${im.page}</span><button class="ghost" data-page="${im.page}">Ver página</button>${im.description ? '' : `<button class="ghost" data-desc="${im.id}">👁 Describir</button>`}</div>
+    <img src="/api/images/${im.id}/file" loading="lazy" data-full="${im.id}">
+    <div class="lbl">Palabras en la imagen (OCR)</div><div class="txt">${im.ocr_text ? esc(im.ocr_text) : '<span class="none">sin texto</span>'}</div>
+    <div class="lbl">Lo que ve la IA</div><div class="txt" data-d="${im.id}">${im.description ? esc(im.description) : '<span class="none">aún no la ha mirado</span>'}</div>
+  </div>`).join('');
+}
+$('#imgs').onclick = async e => {
+  const t = e.target;
+  if(t.dataset.page) return showPage(curDoc().id, +t.dataset.page);
+  if(t.dataset.full) return window.open(`/api/images/${t.dataset.full}/file`, '_blank');
+  if(t.dataset.desc){
+    const id = +t.dataset.desc; t.disabled = true; t.textContent = '👁 Mirando…';
+    const box = $(`[data-d="${id}"]`); box.innerHTML = '<span class="none typing">la IA está mirando la imagen</span>';
+    try{ const r = await api(`/api/images/${id}/describe`, {method:'POST'}); box.textContent = r.description; t.remove(); }
+    catch(err){ box.innerHTML = `<span style="color:var(--warn)">❌ ${esc(err.message)}</span>`; t.disabled = false; t.textContent = '👁 Describir'; }
+  }
+};
+function showImage(id){
+  tab('pImgs');
+  const go = () => { const c = $(`#img${id}`); if(!c) return; document.querySelectorAll('.card.sel').forEach(x => x.classList.remove('sel')); c.classList.add('sel'); c.scrollIntoView({block:'center', behavior:'smooth'}); };
+  if($(`#img${id}`)) go(); else loadImages().then(go);
+}
+
+$('#findf').onsubmit = async e => {
+  e.preventDefault(); const q = $('#findq').value.trim(); if(q.length < 2 || !S.scope) return;
+  const r = await api(`/api/search?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(S.scope)}`);
+  if(!r.hits.length){ $('#found').innerHTML = `<p>No aparece <b>"${esc(q)}"</b> en ${S.scope === 'all' ? 'ningún documento' : 'este documento'}.</p>`; return; }
+  const head = r.exact ? '✅ Aparece en' : r.partial ? '🔤 Aparece dentro de otra palabra en' : '≈ No está tal cual. Lo más parecido en';
+  const mark = (snip, m) => { const s = esc(snip), mm = esc(m); const i = s.toLowerCase().indexOf(mm.toLowerCase()); return i < 0 ? s : s.slice(0, i) + '<mark>' + s.slice(i, i + mm.length) + '</mark>' + s.slice(i + mm.length); };
+  $('#found').innerHTML = `<p>${head} ${r.hits.length} lugar(es):</p>` + r.hits.map((h, i) => `<div class="card res" data-i="${i}">
+    <div class="h"><span>${h.image_id ? '🖼 Imagen de la' : '📄'} pág. ${h.page}${h.count > 1 ? ` · ${h.count} veces` : ''}${r.exact || r.partial ? '' : ` · ${Math.round(h.score * 100)}%`}</span></div>
+    <div class="txt">${mark(h.snippet, h.match)}</div><div class="lbl">${esc(h.doc_name)}</div></div>`).join('');
+  $('#found').onclick = ev => { const c = ev.target.closest('.res'); if(!c) return; const h = r.hits[+c.dataset.i]; h.image_id ? showImage(h.image_id) : showPage(h.doc_id, h.page, h.match); };
+};
+
+// ---------- ajustes ----------
+$('#btnSet').onclick = async () => {
+  const s = await api('/api/settings'); const f = $('#setf');
+  for(const k in s) if(f[k] && k !== 'gemini_api_key') f[k].value = s[k];
+  f.gemini_api_key.value = ''; f.gemini_api_key.placeholder = s.gemini_key_set ? 'guardada (vacío = no cambiar)' : 'pega aquí tu clave (opcional)';
+  $('#dlg').showModal();
+};
+$('#dlg').onclose = async () => {
+  if($('#dlg').returnValue !== 'save') return;
+  const body = Object.fromEntries(new FormData($('#setf')));
+  try{ await api('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}); }
+  catch(e){ alert(e.message); }
+  status();
+};
+
+status(); loadDocs(); setInterval(status, 30000);
+</script>
+</body>
+</html>
